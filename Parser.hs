@@ -27,7 +27,7 @@ charOrEscape = isEscape <|> isChar
 
 isChar = noneOf "\""
 
-isEscape = do char '\\'
+isEscape = do try $ char '\\'
               e <- oneOf "nrt\"\\"
               case e of
                 '\"' -> return '\"'
@@ -68,6 +68,11 @@ parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
         <|> parseNumber
+        <|> parseQuoted
+        <|> do char '('
+               x <- try parseList <|> parseDottedList
+               char ')'
+               return x
 
 data LispVal = Atom String
              | List [LispVal]
