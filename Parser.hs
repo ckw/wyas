@@ -12,16 +12,30 @@ symbol = oneOf "!#%&|*+-/?@^_~"
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
     Left err -> "No match: " ++ show err
-    Right val -> "Found value"
+    Right val -> "Found value: " ++ show val
 
 spaces :: Parser ()
 spaces = skipMany1 space
 
 parseString :: Parser LispVal
 parseString = do char '"'
-                 x <- many $ noneOf "\""
+                 x <- many $ charOrEscape
                  char '"'
                  return $ String x
+
+charOrEscape = isEscape <|> isChar
+
+isChar = noneOf "\""
+
+isEscape = do char '\\'
+              e <- oneOf "nrt\"\\"
+              case e of
+                '\"' -> return '\"'
+                'n' -> return '\n'
+                'r' -> return '\r'
+                't' -> return '\t'
+                '\\' -> return '\\'
+                _    -> fail "invalid escape character"
 
 parseAtom :: Parser LispVal
 parseAtom = do first <- letter <|> symbol
@@ -35,6 +49,15 @@ parseAtom = do first <- letter <|> symbol
 parseNumber :: Parser LispVal
 parseNumber = (many1 digit) >>= (return . Number . read)
 
+parseList :: Parser LispVal
+parseList = List <$> sepBy parseExpr spaces
+
+parseDottedList :: Parser LispVal
+parseDottedList = do
+    head <- endBy parseExpr spaces
+    tail <- char '.' >> spaces >> parseExpr
+    return $ DottedList head tail
+
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
@@ -46,3 +69,4 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
+  deriving Show
