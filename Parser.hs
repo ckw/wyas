@@ -4,16 +4,14 @@ import Control.Applicative ((<$>))
 import Data.List (intercalate)
 
 main = do
-    args <- getArgs
-    putStrLn $ readExpr $ head args
-
+    getArgs >>= print . eval . readExpr . head
 
 symbol = oneOf "!#%&|*+-/?@^_~"
 
-readExpr :: String -> String
+readExpr :: String -> LispVal
 readExpr input = case parse parseExpr "lisp" input of
-    Left err -> "No match: " ++ show err
-    Right val -> "Found value: " ++ show val
+    Left err -> String $ "No match: " ++ show err
+    Right val -> val
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -94,3 +92,10 @@ instance Show LispVal where
         Number n -> show n
         String s -> "\"" ++ s ++ "\""
         Bool b -> if b then "#t" else "#f"
+
+
+eval :: LispVal -> LispVal
+eval v@(String _) = v
+eval v@(Number _) = v
+eval v@(Bool _) = v
+eval (List [Atom "quote", v]) = v
