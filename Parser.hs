@@ -1,6 +1,7 @@
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Control.Applicative ((<$>))
+import Data.List (intercalate)
 
 main = do
     args <- getArgs
@@ -80,4 +81,16 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
-  deriving Show
+
+instance Show LispVal where
+    show v = case v of
+        Atom s -> s
+        List l -> "(" ++ (intercalate " " $ show <$> l) ++ ")"
+        DottedList llv lv -> "("
+                          ++ (intercalate " " $ show <$> llv)
+                          ++  " . "
+                          ++ (show lv)
+                          ++ ")"
+        Number n -> show n
+        String s -> "\"" ++ s ++ "\""
+        Bool b -> if b then "#t" else "#f"
