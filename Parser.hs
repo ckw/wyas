@@ -99,3 +99,26 @@ eval v@(String _) = v
 eval v@(Number _) = v
 eval v@(Bool _) = v
 eval (List [Atom "quote", v]) = v
+eval (List (Atom func : args)) = apply func $ eval <$> args
+
+apply :: String -> [LispVal] -> LispVal
+apply func args = maybe (Bool False) ($ args) $ lookup func primitives
+
+primitives = [ ("+", numericBinop (+))
+             , ("-", numericBinop (-))
+             , ("*", numericBinop (*))
+             , ("/", numericBinop div)
+             , ("mod", numericBinop mod)
+             , ("quotient", numericBinop quot)
+             , ("remainder", numericBinop rem)
+             ]
+
+numericBinop op params = Number $ foldl1 op $ unpackNum <$> params
+
+unpackNum (Number n) = n
+unpackNum (String n) = let parsed = reads n in
+                           if null parsed
+                           then 0
+                           else fst $ head parsed
+unpackNum (List [n]) = unpackNum n
+unpackNum _ = 0
