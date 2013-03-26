@@ -2,16 +2,19 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Control.Applicative ((<$>))
 import Data.List (intercalate)
+import Control.Monad.Error
 
 main = do
-    getArgs >>= print . eval . readExpr . head
+          args <- getArgs
+          evaluated <- return $ liftM show $ readExpr (head args) >>= eval
+          putStrLn $ extractValue $ trapError evaluated
 
 symbol = oneOf "!#%&|*+-/?@^_~"
 
-readExpr :: String -> LispVal
+readExpr :: String -> ThrowsError LispVal
 readExpr input = case parse parseExpr "lisp" input of
-    Left err -> String $ "No match: " ++ show err
-    Right val -> val
+    Left err -> throwError $ Parser err
+    Right val -> return val
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -93,16 +96,49 @@ instance Show LispVal where
         String s -> "\"" ++ s ++ "\""
         Bool b -> if b then "#t" else "#f"
 
+data LispError = NumArgs Integer [LispVal]
+               | TypeMismatch String LispVal
+               | Parser ParseError
+               | BadSpecialForm String LispVal
+               | NotFunction String String
+               | UnboundVar String String
+               | Default String
 
-eval :: LispVal -> LispVal
-eval v@(String _) = v
-eval v@(Number _) = v
-eval v@(Bool _) = v
-eval (List [Atom "quote", v]) = v
-eval (List (Atom func : args)) = apply func $ eval <$> args
+instance Show LispError where
+    show (UnboundVar msg varname) = msg ++ ": " ++ varname
+    show (BadSpecialForm msg form) = msg ++ ": " ++ show form
+    show (NotFunction msg func) = msg ++ ": " ++ show func
+    show (NumArgs expected found) = "Expected " ++ show expected
+                                 ++ " args; found values "
+                                 ++ (intercalate " " $ show <$> found)
+    show (TypeMismatch expected found) = "Invalid type: expected "
+                                      ++ expected ++ ", found " ++ show found
+    show (Parser parseErr) = "Parse error at " ++ show parseErr
 
-apply :: String -> [LispVal] -> LispVal
-apply func args = maybe (Bool False) ($ args) $ lookup func primitives
+instance Error LispError where
+    noMsg = Default "An error occurred"
+    strMsg = Default
+
+type ThrowsError = Either LispError
+
+trapError action = catchError action (return . show)
+
+extractValue :: ThrowsError a -> a
+extractValue (Right val) = val
+
+--eval :: LispVal -> ThrowsError LispVal
+eval v@(String _) = return v
+eval v@(Number _) = return v
+eval v@(Bool _) = return v
+eval (List [Atom "quote", v]) = return v
+eval (List (Atom func : args)) = mapM eval args >>= apply func
+eval badform = throwError $ BadSpecialForm "Unrecognized special form" badform
+
+--apply :: String -> [LispVal] -> ThrowsError LispVal
+apply func args = maybe (throwError $ NotFunction
+                            "Unrecognized primitive function args" func)
+                        ($ args)
+                        (lookup func primitives)
 
 primitives = [ ("+", numericBinop (+))
              , ("-", numericBinop (-))
@@ -117,20 +153,21 @@ primitives = [ ("+", numericBinop (+))
              , ("list?", isList)
              ]
 
-isBool (Bool _ : xs) = Bool True
-isBool _ = Bool False
+isBool (Bool _ : xs) = return $ Bool True
+isBool _ = return $ Bool False
 
-isString (String _ : xs) = Bool True
-isString _ = Bool False
+isString (String _ : xs) = return $ Bool True
+isString _ = return $ Bool False
 
-isList (List _ : xs) = Bool True
-isList (DottedList _ _ : xs) = Bool True
-isList _ = Bool False
+isList (List _ : xs) = return $  Bool True
+isList (DottedList _ _ : xs) = return $ Bool True
+isList _ = return $ Bool False
 
-isNumber (Number _ : xs) = Bool True
-isNumber _ = Bool False
+isNumber (Number _ : xs) = return $ Bool True
+isNumber _ = return $ Bool False
 
-numericBinop op params = Number $ foldl1 op $ unpackNum <$> params
+numericBinop op sv@[_] = throwError $ NumArgs 2 sv
+numericBinop op params = mapM unpackNum params >>= return . Number . foldl1 op
 
-unpackNum (Number n) = n
-unpackNum _ = 0
+unpackNum (Number n) = return n
+unpackNum t = throwError $ TypeMismatch "number" t
