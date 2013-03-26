@@ -111,14 +111,26 @@ primitives = [ ("+", numericBinop (+))
              , ("mod", numericBinop mod)
              , ("quotient", numericBinop quot)
              , ("remainder", numericBinop rem)
+             , ("boolean?", isBool)
+             , ("string?", isString)
+             , ("number?", isNumber)
+             , ("list?", isList)
              ]
+
+isBool (Bool _ : xs) = Bool True
+isBool _ = Bool False
+
+isString (String _ : xs) = Bool True
+isString _ = Bool False
+
+isList (List _ : xs) = Bool True
+isList (DottedList _ _ : xs) = Bool True
+isList _ = Bool False
+
+isNumber (Number _ : xs) = Bool True
+isNumber _ = Bool False
 
 numericBinop op params = Number $ foldl1 op $ unpackNum <$> params
 
 unpackNum (Number n) = n
-unpackNum (String n) = let parsed = reads n in
-                           if null parsed
-                           then 0
-                           else fst $ head parsed
-unpackNum (List [n]) = unpackNum n
 unpackNum _ = 0
