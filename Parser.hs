@@ -9,7 +9,7 @@ main = do
           evaluated <- return $ liftM show $ readExpr (head args) >>= eval
           putStrLn $ extractValue $ trapError evaluated
 
-symbol = oneOf "!#%&|*+-/?@^_~"
+symbol = oneOf "!#%&|*+-/?@^_~=><"
 
 readExpr :: String -> ThrowsError LispVal
 readExpr input = case parse parseExpr "lisp" input of
