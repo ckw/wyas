@@ -151,7 +151,32 @@ primitives = [ ("+", numericBinop (+))
              , ("string?", isString)
              , ("number?", isNumber)
              , ("list?", isList)
+             , ("=", numBoolBinop (==))
+             , ("<", numBoolBinop (<))
+             , (">", numBoolBinop (>))
+             , ("/=", numBoolBinop (/=))
+             , (">=", numBoolBinop (>=))
+             , ("<=", numBoolBinop (<=))
+             , ("&&", boolBoolBinop (&&))
+             , ("||", boolBoolBinop (||))
+             , ("string=?",  strBoolBinop (==))
+             , ("string<?",  strBoolBinop (<))
+             , ("string>?",  strBoolBinop (>))
+             , ("string<=?", strBoolBinop (<=))
+             , ("string>=?", strBoolBinop (>=))
              ]
+
+boolBinop unpacker op args = if length args /= 2
+                             then throwError $ NumArgs 2 args
+                             else do left <- unpacker $ head args
+                                     right <- unpacker $ args !! 1
+                                     return $ Bool $ left `op` right
+
+numBoolBinop = boolBinop unpackNum
+
+boolBoolBinop = boolBinop unpackBool
+
+strBoolBinop = boolBinop unpackStr
 
 isBool (Bool _ : xs) = return $ Bool True
 isBool _ = return $ Bool False
@@ -171,3 +196,11 @@ numericBinop op params = mapM unpackNum params >>= return . Number . foldl1 op
 
 unpackNum (Number n) = return n
 unpackNum t = throwError $ TypeMismatch "number" t
+
+
+unpackBool (Bool b) = return b
+unpackBool t = throwError $ TypeMismatch "boolean" t
+
+
+unpackStr (String s) = return s
+unpackStr t = throwError $ TypeMismatch "string" t
