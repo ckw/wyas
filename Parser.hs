@@ -131,7 +131,13 @@ eval v@(String _) = return v
 eval v@(Number _) = return v
 eval v@(Bool _) = return v
 eval (List [Atom "quote", v]) = return v
+eval (List [Atom "if", pred, conseq, alt]) = do
+    res <- eval pred
+    case res of
+        Bool True -> eval conseq
+        Bool False -> eval alt
 eval (List (Atom func : args)) = mapM eval args >>= apply func
+
 eval badform = throwError $ BadSpecialForm "Unrecognized special form" badform
 
 --apply :: String -> [LispVal] -> ThrowsError LispVal
