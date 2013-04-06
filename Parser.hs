@@ -172,6 +172,7 @@ primitives = [ ("+", numericBinop (+))
              , ("string>=?", strBoolBinop (>=))
              , ("car", car)
              , ("cdr", cdr)
+             , ("cons", cons)
              ]
 
 boolBinop unpacker op args = if length args /= 2
@@ -226,3 +227,10 @@ cdr [DottedList [_] y] = return y
 cdr [DottedList (_ : xs) y] = return $ DottedList xs y
 cdr [badArg] = throwError $ TypeMismatch "pair" badArg
 cdr badArgList = throwError $ NumArgs 1 badArgList
+
+cons :: [LispVal] -> ThrowsError LispVal
+cons [x, List []] = return $ List [x]
+cons [x, List xs] = return $ List $ x : xs
+cons [x, DottedList xs y] = return $ DottedList (x:xs) y
+cons [x, y] = return $ DottedList [x] y
+cons badArgList = throwError $ NumArgs 2 badArgList
