@@ -1,13 +1,28 @@
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
+import System.IO
 import Control.Applicative ((<$>))
 import Data.List (intercalate)
 import Control.Monad.Error
 
 main = do
-          args <- getArgs
-          evaluated <- return $ liftM show $ readExpr (head args) >>= eval
-          putStrLn $ extractValue $ trapError evaluated
+    args <- getArgs
+    case length args of
+        0 -> fix $ \loop -> do
+                 inp <- readPrompt "LI$P>"
+                 unless (inp `elem` ["q","quit","exit"])
+                     $ evalAndPrint inp >> loop
+        1 -> evalAndPrint $ head args
+        _ -> putStrLn "too many args"
+
+flushStr str = putStr str >> hFlush stdout
+
+readPrompt prompt = flushStr prompt >> getLine
+
+evalString expr = return $ extractValue $ trapError
+                      (liftM show $ readExpr expr >>= eval)
+
+evalAndPrint expr = evalString expr >>= putStrLn
 
 symbol = oneOf "!#%&|*+-/?@^_~=><"
 
