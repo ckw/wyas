@@ -4,6 +4,7 @@ import System.IO
 import Control.Applicative ((<$>))
 import Data.List (intercalate)
 import Control.Monad.Error
+import Data.IORef
 
 main = do
     args <- getArgs
@@ -90,6 +91,11 @@ parseExpr = parseAtom
                x <- try parseList <|> parseDottedList
                char ')'
                return x
+
+type Env = IORef [(String, IORef LispVal)]
+
+nullEnv :: IO Env
+nullEnv = newIORef []
 
 data LispVal = Atom String
              | List [LispVal]
