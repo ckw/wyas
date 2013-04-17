@@ -147,6 +147,13 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
+type IOThrowsError = ErrorT LispError IO
+
+liftThrows (Left err) = throwError err
+liftThrows (Right val) = return val
+
+runIOThrows action = runErrorT (trapError action) >>= return . extractValue
+
 --eval :: LispVal -> ThrowsError LispVal
 eval v@(String _) = return v
 eval v@(Number _) = return v
